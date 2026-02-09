@@ -60,7 +60,7 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
 
   private static final Logger logger = LoggerFactory.getLogger(PostgreSQLDialectAdapter.class);
 
-  private static final int VARCHAR_MAX_LENGTH = 65535;
+  private static final int VARCHAR_MAX_LENGTH = 100;
 
   // SQLState / Error codes
   // Ref: <a href="https://www.postgresql.org/docs/current/errcodes-appendix.html"></a>
