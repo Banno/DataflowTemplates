@@ -54,7 +54,7 @@ import org.apache.commons.lang3.StringUtils;
           + " database with available JDBC drivers into Spanner. This currently only supports a limited set of types of MySQL",
     },
     optionsClass = SourceDbToSpannerOptions.class,
-    flexContainerName = "source-db-to-spanner",
+    flexContainerName = "source-db-to-spanner-modified",
     documentation =
         "https://cloud.google.com/dataflow/docs/guides/templates/provided/sourcedb-to-spanner",
     contactInformation = "https://cloud.google.com/support",
