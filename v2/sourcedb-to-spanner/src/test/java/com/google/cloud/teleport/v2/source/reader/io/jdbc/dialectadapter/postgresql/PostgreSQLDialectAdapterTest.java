@@ -261,7 +261,7 @@ public class PostgreSQLDialectAdapterTest {
                             .setDbCollation("en_US")
                             .setPadSpace(false)
                             .build())
-                    .setStringMaxLength(65535)
+                    .setStringMaxLength(100)
                     .build(),
                 SourceColumnIndexInfo.builder()
                     .setColumnName("col3")
