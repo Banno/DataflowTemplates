@@ -168,15 +168,20 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
         tables);
 
     final String query =
-        "SELECT column_name,"
-            + "  data_type,"
-            + "  character_maximum_length,"
-            + "  numeric_precision,"
-            + "  numeric_scale"
-            + " FROM information_schema.columns"
-            + " WHERE table_catalog = ?"
-            + "  AND table_schema = ?"
-            + "  AND table_name = ?";
+        "SELECT c.column_name,"
+            + "  c.data_type,"
+            + "  c.character_maximum_length,"
+            + "  c.numeric_precision,"
+            + "  c.numeric_scale,"
+            + "  e.data_type AS element_type"
+            + " FROM information_schema.columns c"
+            + " LEFT JOIN information_schema.element_types e ON ("
+            + "    (c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier) ="
+            + "    (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier)"
+            + " )"
+            + " WHERE c.table_catalog = ?"
+            + "  AND c.table_schema = ?"
+            + "  AND c.table_name = ?";
 
     ImmutableMap.Builder<String, ImmutableMap<String, SourceColumnType>> tableSchemaBuilder =
         ImmutableMap.builder();
@@ -189,9 +194,20 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
         try (ResultSet resultSet = statement.executeQuery()) {
           ImmutableMap.Builder<String, SourceColumnType> schema = ImmutableMap.builder();
           while (resultSet.next()) {
-            SourceColumnType sourceColumnType;
             final String columnName = resultSet.getString("column_name");
-            final String columnType = resultSet.getString("data_type");
+            String columnType = resultSet.getString("data_type");
+            Long[] arrayBounds = null; // Initialize arrayBounds to null
+
+            // Check if it's an array type and get the element type
+            if ("ARRAY".equalsIgnoreCase(columnType)) {
+                String elementType = resultSet.getString("element_type");
+                if (elementType != null) {
+                    columnType = elementType; // Use element type for SourceColumnType.name
+                    arrayBounds = new Long[]{1L}; // Indicate a single-dimensional array (for now, assume 1D)
+                }
+            }
+
+            SourceColumnType sourceColumnType;
             final long characterMaximumLength = resultSet.getLong("character_maximum_length");
             boolean typeHasMaximumCharacterLength = !resultSet.wasNull();
             final long numericPrecision = resultSet.getLong("numeric_precision");
@@ -200,16 +216,16 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
             boolean typeHasScale = !resultSet.wasNull();
             if (typeHasMaximumCharacterLength) {
               sourceColumnType =
-                  new SourceColumnType(columnType, new Long[] {characterMaximumLength}, null);
+                  new SourceColumnType(columnType, new Long[] {characterMaximumLength}, arrayBounds);
             } else if (typeHasPrecision && typeHasScale) {
               sourceColumnType =
                   new SourceColumnType(
-                      columnType, new Long[] {numericPrecision, numericScale}, null);
+                      columnType, new Long[] {numericPrecision, numericScale}, arrayBounds);
             } else if (typeHasPrecision) {
               sourceColumnType =
-                  new SourceColumnType(columnType, new Long[] {numericPrecision}, null);
+                  new SourceColumnType(columnType, new Long[] {numericPrecision}, arrayBounds);
             } else {
-              sourceColumnType = new SourceColumnType(columnType, new Long[] {}, null);
+              sourceColumnType = new SourceColumnType(columnType, new Long[] {}, arrayBounds);
             }
             schema.put(columnName, sourceColumnType);
           }

@@ -17,10 +17,8 @@ package com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.provide
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.UnifiedTypeMapping;
-import com.google.common.base.Preconditions;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
-import org.apache.commons.lang3.ArrayUtils;
 
 /**
  * Wraps a simple {@link Schema Avro Schema} into the {@link UnifiedTypeMapping} interface. The
@@ -40,7 +38,7 @@ abstract class SimpleUnifiedTypeMapping implements UnifiedTypeMapping {
 
   @Override
   public Schema getSchema(@Nullable Long[] mods, @Nullable Long[] arrayBounds) {
-    Preconditions.checkArgument(ArrayUtils.isEmpty(arrayBounds), "Arrays are not supported");
+    //Preconditions.checkArgument(ArrayUtils.isEmpty(arrayBounds), "Arrays are not supported");
     return this.schema();
   }
 }

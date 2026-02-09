@@ -18,6 +18,7 @@ package com.google.cloud.teleport.v2.source.reader.io.schema.typemapping;
 import com.google.cloud.teleport.v2.source.reader.io.cassandra.mappings.CassandraMappingsProvider;
 import com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.provider.MysqlMappingProvider;
 import com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.provider.PostgreSQLMappingProvider;
+import com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.provider.unified.UnifiedMappingProvider;
 import com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.provider.unified.Unsupported;
 import com.google.cloud.teleport.v2.spanner.migrations.schema.SourceColumnType;
 import com.google.common.collect.ImmutableMap;
@@ -92,10 +93,19 @@ public final class UnifiedTypeMapper {
    * TODO(vardhanvthigle): Handle Nested collections.
    */
   private Schema getBasicSchema(SourceColumnType columnType) {
-    return mappers
-        .get(this.mapperType)
-        .getOrDefault(columnType.getName().toUpperCase(), new Unsupported())
-        .getSchema(columnType.getMods(), columnType.getArrayBounds());
+    UnifiedTypeMapping unifiedTypeMapping =
+        mappers
+            .get(this.mapperType)
+            .getOrDefault(columnType.getName().toUpperCase(), new Unsupported());
+
+    if (columnType.getArrayBounds() != null && columnType.getArrayBounds().length > 0) {
+        // If it's an array, get the array mapping based on the element's unified type mapping
+        return UnifiedMappingProvider.getArrayMapping(unifiedTypeMapping)
+                                    .getSchema(columnType.getMods(), columnType.getArrayBounds());
+    } else {
+        // If not an array, use the basic unified type mapping
+        return unifiedTypeMapping.getSchema(columnType.getMods(), columnType.getArrayBounds());
+    }
   }
 
   /** Type of the database for the type mapping. */

@@ -389,4 +389,26 @@ public class PostgreSQLDialectAdapterTest {
     assertThat(collationsOrderQuery).doesNotContain(ResourceUtils.COLLATION_REPLACEMENT_TAG);
     assertThat(collationsOrderQuery).doesNotContain(ResourceUtils.RETURN_TYPE_REPLACEMENT_TAG);
   }
-}
+
+  @Test
+  public void testDiscoverTableSchemaWithArrayType() throws SQLException, RetriableSchemaDiscoveryException {
+    ImmutableList<String> tables = ImmutableList.of("my_schema.table_with_array");
+
+    when(mockDataSource.getConnection()).thenReturn(mockConnection);
+    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true, false); // One column, then end
+    when(mockResultSet.getString("column_name")).thenReturn("int_array_col");
+    when(mockResultSet.getString("data_type")).thenReturn("ARRAY");
+    when(mockResultSet.getString("element_type")).thenReturn("integer"); // Element type for INT[]
+    when(mockResultSet.getLong("character_maximum_length")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_precision")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_scale")).thenReturn(0L);
+    when(mockResultSet.wasNull()).thenReturn(true, true, true, false); // For character_maximum_length, numeric_precision, numeric_scale, element_type
+
+    assertThat(adapter.discoverTableSchema(mockDataSource, sourceSchemaReference, tables))
+        .containsExactly(
+            "my_schema.table_with_array",
+            ImmutableMap.of(
+                "int_array_col", new SourceColumnType("integer", new Long[] {}, new Long[]{1L})));
+  }}

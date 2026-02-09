@@ -49,4 +49,20 @@ public class UnifiedTypeMapperTest {
         java.lang.IllegalArgumentException.class,
         () -> new UnifiedTypeMapper(MapperType.SQLSERVER));
   }
+
+  @Test
+  public void testUnifiedTypeMapperWithPostgresArrayType() {
+    // SourceColumnType for an integer array from PostgreSQL
+    SourceColumnType intArrayColumn = new SourceColumnType("integer", null, new Long[]{1L});
+    UnifiedTypeMapper postgresMapper = new UnifiedTypeMapper(MapperType.POSTGRESQL);
+
+    Schema actualSchema = postgresMapper.getSchema(intArrayColumn);
+
+    // Expected Avro schema for an array of integers (nullable)
+    Schema expectedElementSchema = SchemaBuilder.builder().intType();
+    Schema expectedArraySchema = SchemaBuilder.array().items(expectedElementSchema);
+    Schema expectedFinalSchema = SchemaBuilder.builder().unionOf().nullType().and().type(expectedArraySchema).endUnion();
+
+    assertThat(actualSchema.toString(true)).isEqualTo(expectedFinalSchema.toString(true));
+  }
 }
