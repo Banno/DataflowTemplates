@@ -16,8 +16,12 @@
 package com.google.cloud.teleport.v2.source.reader.io.jdbc.rowmapper;
 
 import java.io.Serializable;
+import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.avro.Schema;
 
 /**
@@ -60,6 +64,19 @@ public class JdbcValueMapper<T extends Object> implements Serializable {
       return null;
     }
     return valueMapper.map(extractedValue, fieldSchema);
+  }
+
+  public Object mapArrayValue(ResultSet rs, String fieldName, Schema fieldSchema) throws SQLException {
+    Array array = rs.getArray(fieldName);
+    if (array == null || rs.wasNull()) {
+      return null;
+    }
+    List<T> items = Arrays.asList((T[]) array.getArray());
+    List<Object> mapped = new ArrayList<>();
+    for (T item : items) {
+      mapped.add(valueMapper.map(item, fieldSchema.getElementType()));
+    }
+    return mapped;
   }
 
   public static final JdbcValueMapper<?> UNSUPPORTED =
