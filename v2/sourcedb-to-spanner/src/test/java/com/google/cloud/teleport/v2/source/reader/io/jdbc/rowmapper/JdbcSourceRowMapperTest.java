@@ -988,6 +988,14 @@ public class JdbcSourceRowMapperTest {
                 .sourceColumnType("XML")
                 .mappedValue(null) // Unsupported
                 .build())
+        // .add(
+        //     Column.builder()
+        //         .name("text_array")
+        //         .derbyColumnType("VARCHAR(100)") //Derby does not support array types :(
+        //         .sourceColumnType("TEXT", new Long[] {}, new Long[]{1L})
+        //         .inputValue("one,two,three")
+        //         .mappedValue(Arrays.asList("one", "two", "three"))
+        //         .build())
         .build();
   }
 
@@ -1073,6 +1081,11 @@ class Column {
 
     Builder sourceColumnType(String type, Long[] mods) {
       this.sourceColumnType = new SourceColumnType(type, mods, null);
+      return this;
+    }
+
+    Builder sourceColumnType(String type, Long[] mods, Long[] arrayBounds) {
+      this.sourceColumnType = new SourceColumnType(type, mods, arrayBounds);
       return this;
     }
 
