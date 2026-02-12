@@ -38,6 +38,7 @@ import com.google.cloud.teleport.v2.source.reader.io.schema.typemapping.provider
 import com.google.cloud.teleport.v2.spanner.migrations.schema.SourceColumnType;
 import com.google.common.collect.ImmutableList;
 import java.nio.ByteBuffer;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -45,6 +46,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -234,6 +237,42 @@ public class JdbcSourceRowMapperTest {
     Assert.assertThrows(
         java.lang.IllegalArgumentException.class,
         () -> mapping.mapValue(mockResultSet, "testField", null));
+  }
+
+  @Test
+  public void testArrayMapping() throws SQLException {
+    String testTable = "test_table";
+
+    String textArrayColumn = "text_array_col";
+    String[] textArrayValues = {"value1", "value2", "value3"};
+    ArrayList<String> expectedTextArray = new ArrayList<String>(Arrays.asList(textArrayValues));
+    Array mockTextArray = Mockito.mock(Array.class);
+    when(mockTextArray.getArray()).thenReturn(textArrayValues);
+    ResultSet mockTextArrayResultSet = Mockito.mock(ResultSet.class);
+    when(mockTextArrayResultSet.getArray(textArrayColumn)).thenReturn(mockTextArray);
+
+    String intArrayColumn = "int_array_col";
+    Integer[] intArrayValues = {1, 2, 3};
+    ArrayList<Integer> expectedIntArray = new ArrayList<Integer>(Arrays.asList(intArrayValues));
+    Array mockIntArray = Mockito.mock(Array.class);
+    when(mockIntArray.getArray()).thenReturn(intArrayValues);
+    ResultSet mockIntArrayResultSet = Mockito.mock(ResultSet.class);
+    when(mockIntArrayResultSet.getArray(intArrayColumn)).thenReturn(mockIntArray);
+
+    var sourceTableSchema =
+        SourceTableSchema.builder(MapperType.POSTGRESQL)
+            .setTableName(testTable)
+            .addSourceColumnNameToSourceColumnType(
+                textArrayColumn, new SourceColumnType("TEXT", new Long[] {}, new Long[] {1L}))
+            .addSourceColumnNameToSourceColumnType(
+                intArrayColumn, new SourceColumnType("INTEGER", new Long[] {}, new Long[] {1L}))
+            .build();
+    var sourceSchemaRef = SchemaTestUtils.generateSchemaReference("public", "mydb");
+    JdbcSourceRowMapper mapper =
+        new JdbcSourceRowMapper(
+            new PostgreSQLJdbcValueMappings(), sourceSchemaRef, sourceTableSchema, null);
+    assertEquals(expectedTextArray, (ArrayList<String>) mapper.mapRow(mockTextArrayResultSet).getPayload().get(textArrayColumn));
+    assertEquals(expectedIntArray, (ArrayList<Integer>) mapper.mapRow(mockIntArrayResultSet).getPayload().get(intArrayColumn));
   }
 
   @Test
@@ -988,14 +1027,6 @@ public class JdbcSourceRowMapperTest {
                 .sourceColumnType("XML")
                 .mappedValue(null) // Unsupported
                 .build())
-        // .add(
-        //     Column.builder()
-        //         .name("text_array")
-        //         .derbyColumnType("VARCHAR(100)") //Derby does not support array types :(
-        //         .sourceColumnType("TEXT", new Long[] {}, new Long[]{1L})
-        //         .inputValue("one,two,three")
-        //         .mappedValue(Arrays.asList("one", "two", "three"))
-        //         .build())
         .build();
   }
 
