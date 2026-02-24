@@ -125,12 +125,12 @@ public class ColumnForBoundaryQueryPreparedStatementSetterTest {
 
     String boundaryQueryCol1 =
         new MysqlDialectAdapter(MySqlVersion.DEFAULT)
-            .getBoundaryQuery("test_table_column_boundary", partitionCols, "col1");
+            .getBoundaryQuery("test_table_column_boundary", partitionCols, "col1", Integer.class);
     PreparedStatement boundaryStmtCol1 = connection.prepareStatement(boundaryQueryCol1);
 
     String boundaryQueryCol2 =
         new MysqlDialectAdapter(MySqlVersion.DEFAULT)
-            .getBoundaryQuery("test_table_column_boundary", partitionCols, "col2");
+            .getBoundaryQuery("test_table_column_boundary", partitionCols, "col2", Integer.class);
     PreparedStatement boundaryStmtCol2 = connection.prepareStatement(boundaryQueryCol2);
 
     /* Min, Max for first column of primary key on entire table */

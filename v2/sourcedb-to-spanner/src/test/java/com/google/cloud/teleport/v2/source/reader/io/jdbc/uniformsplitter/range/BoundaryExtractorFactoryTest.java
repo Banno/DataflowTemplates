@@ -291,6 +291,40 @@ public class BoundaryExtractorFactoryTest {
   }
 
   @Test
+  public void testFromUuid() throws SQLException {
+    // Test UUID boundary extraction using java.util.UUID objects
+    PartitionColumn partitionColumn =
+        PartitionColumn.builder().setColumnName("id").setColumnClass(java.util.UUID.class).build();
+    BoundaryExtractor<java.util.UUID> extractor =
+        BoundaryExtractorFactory.create(java.util.UUID.class);
+
+    String minUuidStr = "00000000-0000-0000-0000-000000000000";
+    String maxUuidStr = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+    java.util.UUID minUuid = java.util.UUID.fromString(minUuidStr);
+    java.util.UUID maxUuid = java.util.UUID.fromString(maxUuidStr);
+
+    // Mock ResultSet to return UUID strings (as PostgreSQL does)
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getString(1)).thenReturn(minUuidStr);
+    when(mockResultSet.getString(2)).thenReturn(maxUuidStr);
+
+    Boundary<java.util.UUID> boundary = extractor.getBoundary(partitionColumn, mockResultSet, null);
+
+    // Verify the UUIDs were extracted correctly
+    assertThat(boundary.start()).isEqualTo(minUuid);
+    assertThat(boundary.end()).isEqualTo(maxUuid);
+
+    // Verify the boundary is splittable
+    assertThat(boundary.isSplittable(null)).isTrue();
+
+    // Verify splitting works correctly
+    Boundary<java.util.UUID> split = boundary.split(null).getLeft();
+    assertThat(split).isNotNull();
+    assertThat(split.end()).isNotNull();
+    assertThat(split.end()).isInstanceOf(java.util.UUID.class);
+  }
+
+  @Test
   public void testFromTimestamp() throws SQLException {
     PartitionColumn partitionColumn =
         PartitionColumn.builder().setColumnName("col1").setColumnClass(Timestamp.class).build();

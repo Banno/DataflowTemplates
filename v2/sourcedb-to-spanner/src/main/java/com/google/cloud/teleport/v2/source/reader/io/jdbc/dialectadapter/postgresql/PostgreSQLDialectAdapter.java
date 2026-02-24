@@ -332,6 +332,8 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
         ImmutableList.Builder<SourceColumnIndexInfo> indexInfosBuilder = ImmutableList.builder();
         try (ResultSet resultSet = statement.executeQuery()) {
           while (resultSet.next()) {
+            // Cache type_name to avoid calling getString("type_name") multiple times
+            String typeName = resultSet.getString("type_name");
             SourceColumnIndexInfo.Builder indexBuilder =
                 SourceColumnIndexInfo.builder()
                     .setColumnName(resultSet.getString("column_name"))
@@ -340,12 +342,13 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
                     .setIsPrimary(resultSet.getBoolean("is_primary"))
                     .setCardinality(resultSet.getLong("cardinality"))
                     .setOrdinalPosition(resultSet.getLong("ordinal_position"))
-                    .setIndexType(indexTypeFrom(resultSet.getString("type_category")));
+                    .setIndexType(indexTypeFrom(
+                        resultSet.getString("type_category"),
+                        typeName));
 
             String collation = resultSet.getString("collation");
             if (collation != null) {
               String charset = resultSet.getString("charset");
-              String typeName = resultSet.getString("type_name");
               Integer typeLength = resultSet.getInt("type_length");
               if (resultSet.wasNull()) {
                 typeLength = null;
@@ -448,10 +451,38 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
    * @param tableName name of the table to read.
    * @param partitionColumns if not-empty, partition columns. Set empty for first column of
    *     partitioning.
+   * @param colName name of the column.
+   * @param columnClass class of the column.
    */
   @Override
   public String getBoundaryQuery(
-      String tableName, ImmutableList<String> partitionColumns, String colName) {
+      String tableName, ImmutableList<String> partitionColumns, String colName, Class columnClass) {
+    // PostgreSQL doesn't support MIN/MAX aggregates for UUID types
+    // Use ORDER BY/LIMIT approach instead with CTE to avoid duplicating WHERE clause
+    if (columnClass == java.util.UUID.class) {
+      String whereConditions = buildWhereClauseConditions(partitionColumns);
+
+      if (whereConditions.isEmpty()) {
+        // No WHERE clause needed
+        return String.format(
+            "SELECT "
+                + "(SELECT %s FROM %s ORDER BY %s ASC LIMIT 1) AS min_val, "
+                + "(SELECT %s FROM %s ORDER BY %s DESC LIMIT 1) AS max_val",
+            colName, tableName, colName,
+            colName, tableName, colName);
+      } else {
+        // Use CTE to apply WHERE clause once
+        return String.format(
+            "WITH filtered AS (SELECT %s FROM %s WHERE %s) "
+                + "SELECT "
+                + "(SELECT %s FROM filtered ORDER BY %s ASC LIMIT 1) AS min_val, "
+                + "(SELECT %s FROM filtered ORDER BY %s DESC LIMIT 1) AS max_val",
+            colName, tableName, whereConditions,
+            colName, colName,
+            colName, colName);
+      }
+    }
+
     return addWhereClause(
         String.format("SELECT MIN(%s), MAX(%s) FROM %s", colName, colName, tableName),
         partitionColumns);
@@ -495,31 +526,46 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
     return replaceTagsAndSanitize(query, tags);
   }
 
-  private String addWhereClause(String query, ImmutableList<String> partitionColumns) {
-    StringBuilder queryBuilder = new StringBuilder();
-    queryBuilder.append(query);
-    if (!partitionColumns.isEmpty()) {
-      queryBuilder.append(" WHERE ");
-      queryBuilder.append(
-          partitionColumns.stream()
-              // Include the column / range to define the where clause.
-              // `(exclude col = FALSE) OR (col >= range.start() AND (col < range.end() OR
-              // (range.isLast() = TRUE AND col = range.end()))`
-              .map(
-                  partitionColumn ->
-                      String.format(
-                          "((? = FALSE) OR (%1$s >= ? AND (%1$s < ? OR (? = TRUE AND %1$s = ?))))",
-                          partitionColumn))
-              .collect(Collectors.joining(" AND ")));
+  /**
+   * Build WHERE clause conditions from partition columns without the "WHERE" keyword.
+   *
+   * @param partitionColumns partition columns
+   * @return WHERE clause conditions, or empty string if no partition columns
+   */
+  private String buildWhereClauseConditions(ImmutableList<String> partitionColumns) {
+    if (partitionColumns.isEmpty()) {
+      return "";
     }
-    return queryBuilder.toString();
+    return partitionColumns.stream()
+        // Include the column / range to define the where clause.
+        // `(exclude col = FALSE) OR (col >= range.start() AND (col < range.end() OR
+        // (range.isLast() = TRUE AND col = range.end()))`
+        .map(
+            partitionColumn ->
+                String.format(
+                    "((? = FALSE) OR (%1$s >= ? AND (%1$s < ? OR (? = TRUE AND %1$s = ?))))",
+                    partitionColumn))
+        .collect(Collectors.joining(" AND "));
+  }
+
+  private String addWhereClause(String query, ImmutableList<String> partitionColumns) {
+    String whereConditions = buildWhereClauseConditions(partitionColumns);
+    if (whereConditions.isEmpty()) {
+      return query;
+    }
+    return query + " WHERE " + whereConditions;
   }
 
   /**
    * Ref <a
    * href="https://www.postgresql.org/docs/16/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE"></a>.
    */
-  private SourceColumnIndexInfo.IndexType indexTypeFrom(String typeCategory) {
+  private SourceColumnIndexInfo.IndexType indexTypeFrom(String typeCategory, String typeName) {
+    // Handle UUID specifically
+    if ("uuid".equalsIgnoreCase(typeName)) {
+      return SourceColumnIndexInfo.IndexType.UUID;
+    }
+
     switch (typeCategory) {
       case "N":
         return SourceColumnIndexInfo.IndexType.NUMERIC;

@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -90,6 +91,11 @@ public class BoundarySplitterFactory {
               (BoundarySplitter<Duration>)
                   (start, end, partitionColumn, boundaryTypeMapper, processContext) ->
                       splitDurations(start, end, partitionColumn))
+          .put(
+              java.util.UUID.class,
+              (BoundarySplitter<java.util.UUID>)
+                  (start, end, partitionColumn, boundaryTypeMapper, processContext) ->
+                      splitUuids(start, end))
           .build();
 
   /**
@@ -242,6 +248,67 @@ public class BoundarySplitterFactory {
       return null;
     }
     return split.toByteArray();
+  }
+
+  private static java.util.UUID splitUuids(java.util.UUID start, java.util.UUID end) {
+    if (start == null || end == null) {
+      return null;
+    }
+
+    // UUIDs must be different to be splittable
+    if (start.equals(end)) {
+      return null;
+    }
+
+    // Convert UUIDs to 128-bit BigIntegers for splitting
+    BigInteger startBigInt = uuidToBigInteger(start);
+    BigInteger endBigInt = uuidToBigInteger(end);
+
+    BigInteger split = splitBigIntegers(startBigInt, endBigInt);
+
+    if (split == null) {
+      return null;
+    }
+
+    return bigIntegerToUuid(split);
+  }
+
+  /**
+   * Convert UUID to BigInteger for numeric splitting.
+   * Uses unsigned interpretation (sign = 1) to handle full 128-bit range.
+   */
+  private static BigInteger uuidToBigInteger(java.util.UUID uuid) {
+    ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+    bb.putLong(uuid.getMostSignificantBits());
+    bb.putLong(uuid.getLeastSignificantBits());
+    return new BigInteger(1, bb.array());  // sign = 1 for unsigned
+  }
+
+  /**
+   * Convert BigInteger back to UUID.
+   * Handles padding for cases where BigInteger has fewer than 16 bytes,
+   * and removes sign byte if BigInteger.toByteArray() adds one.
+   */
+  private static java.util.UUID bigIntegerToUuid(BigInteger bigInt) {
+    byte[] bytes = bigInt.toByteArray();
+    byte[] uuidBytes = new byte[16];
+
+    if (bytes.length == 16) {
+      // Perfect size, use as-is
+      System.arraycopy(bytes, 0, uuidBytes, 0, 16);
+    } else if (bytes.length > 16) {
+      // BigInteger added a sign byte (0x00) at the beginning, skip it
+      System.arraycopy(bytes, bytes.length - 16, uuidBytes, 0, 16);
+    } else {
+      // Shorter than 16 bytes, pad with leading zeros
+      System.arraycopy(bytes, 0, uuidBytes, 16 - bytes.length, bytes.length);
+    }
+
+    ByteBuffer bb = ByteBuffer.wrap(uuidBytes);
+    long mostSigBits = bb.getLong();
+    long leastSigBits = bb.getLong();
+
+    return new java.util.UUID(mostSigBits, leastSigBits);
   }
 
   private static String splitStrings(

@@ -215,7 +215,7 @@ public class PostgreSQLDialectAdapterTest {
     when(mockResultSet.getString("collation")).thenReturn(null, "en_US", "en_US", null);
     when(mockResultSet.getInt("type_length")).thenReturn(100, 0);
     when(mockResultSet.wasNull()).thenReturn(false, true);
-    when(mockResultSet.getString("type_name")).thenReturn("char", "text");
+    when(mockResultSet.getString("type_name")).thenReturn("bigint", "char", "text", "timestamp");
     when(mockResultSet.getString("charset")).thenReturn("UTF8", "UTF8");
 
     assertThat(adapter.discoverTableIndexes(mockDataSource, sourceSchemaReference, tables))
@@ -275,6 +275,40 @@ public class PostgreSQLDialectAdapterTest {
   }
 
   @Test
+  public void testDiscoverTableIndexesWithUuidPrimaryKey()
+      throws SQLException, RetriableSchemaDiscoveryException {
+    ImmutableList<String> tables = ImmutableList.of("my_schema.uuid_table");
+
+    when(mockDataSource.getConnection()).thenReturn(mockConnection);
+    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true, false);
+    when(mockResultSet.getString("column_name")).thenReturn("id");
+    when(mockResultSet.getString("index_name")).thenReturn("uuid_table_pkey");
+    when(mockResultSet.getBoolean("is_unique")).thenReturn(true);
+    when(mockResultSet.getBoolean("is_primary")).thenReturn(true);
+    when(mockResultSet.getLong("cardinality")).thenReturn(1000L);
+    when(mockResultSet.getLong("ordinal_position")).thenReturn(1L);
+    when(mockResultSet.getString("type_category")).thenReturn("U");
+    when(mockResultSet.getString("type_name")).thenReturn("uuid");
+    when(mockResultSet.getString("collation")).thenReturn(null);
+
+    assertThat(adapter.discoverTableIndexes(mockDataSource, sourceSchemaReference, tables))
+        .containsExactly(
+            "my_schema.uuid_table",
+            ImmutableList.of(
+                SourceColumnIndexInfo.builder()
+                    .setColumnName("id")
+                    .setIndexName("uuid_table_pkey")
+                    .setIsUnique(true)
+                    .setIsPrimary(true)
+                    .setCardinality(1000L)
+                    .setOrdinalPosition(1L)
+                    .setIndexType(IndexType.UUID)
+                    .build()));
+  }
+
+  @Test
   public void testDiscoverTableIndexesExceptions() throws SQLException {
     final String testTable = "testTable";
     final JdbcSchemaReference sourceSchemaReference =
@@ -317,13 +351,39 @@ public class PostgreSQLDialectAdapterTest {
 
   @Test
   public void testBoundaryQuery() {
-    assertThat(adapter.getBoundaryQuery("my_schema.table1", ImmutableList.of(), "id"))
+    assertThat(adapter.getBoundaryQuery("my_schema.table1", ImmutableList.of(), "id", Long.class))
         .isEqualTo("SELECT MIN(id), MAX(id) FROM my_schema.table1");
-    assertThat(adapter.getBoundaryQuery("my_schema.table1", ImmutableList.of("col1", "col2"), "id"))
+    assertThat(
+            adapter.getBoundaryQuery(
+                "my_schema.table1", ImmutableList.of("col1", "col2"), "id", Long.class))
         .isEqualTo(
             "SELECT MIN(id), MAX(id) FROM my_schema.table1 "
                 + "WHERE ((? = FALSE) OR (col1 >= ? AND (col1 < ? OR (? = TRUE AND col1 = ?)))) "
                 + "AND ((? = FALSE) OR (col2 >= ? AND (col2 < ? OR (? = TRUE AND col2 = ?))))");
+  }
+
+  @Test
+  public void testBoundaryQueryForUuid() {
+    assertThat(
+            adapter.getBoundaryQuery(
+                "my_schema.table1", ImmutableList.of(), "id", java.util.UUID.class))
+        .isEqualTo(
+            "SELECT "
+                + "(SELECT id FROM my_schema.table1 ORDER BY id ASC LIMIT 1) AS min_val, "
+                + "(SELECT id FROM my_schema.table1 ORDER BY id DESC LIMIT 1) AS max_val");
+    assertThat(
+            adapter.getBoundaryQuery(
+                "my_schema.table1",
+                ImmutableList.of("col1", "col2"),
+                "id",
+                java.util.UUID.class))
+        .isEqualTo(
+            "WITH filtered AS (SELECT id FROM my_schema.table1 WHERE "
+                + "((? = FALSE) OR (col1 >= ? AND (col1 < ? OR (? = TRUE AND col1 = ?)))) "
+                + "AND ((? = FALSE) OR (col2 >= ? AND (col2 < ? OR (? = TRUE AND col2 = ?))))) "
+                + "SELECT "
+                + "(SELECT id FROM filtered ORDER BY id ASC LIMIT 1) AS min_val, "
+                + "(SELECT id FROM filtered ORDER BY id DESC LIMIT 1) AS max_val");
   }
 
   @Test

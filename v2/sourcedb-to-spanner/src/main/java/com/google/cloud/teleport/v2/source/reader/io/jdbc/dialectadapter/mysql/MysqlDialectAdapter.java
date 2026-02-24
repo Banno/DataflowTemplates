@@ -653,10 +653,12 @@ public final class MysqlDialectAdapter implements DialectAdapter {
    * @param tableName name of the table to read.
    * @param partitionColumns if not-empty, partition columns. Set empty for first column of
    *     partitioning.
+   * @param colName name of the column.
+   * @param columnClass class of the column.
    */
   @Override
   public String getBoundaryQuery(
-      String tableName, ImmutableList<String> partitionColumns, String colName) {
+      String tableName, ImmutableList<String> partitionColumns, String colName, Class columnClass) {
     return addWhereClause(
         String.format("select MIN(%s),MAX(%s) from %s", colName, colName, tableName),
         partitionColumns);

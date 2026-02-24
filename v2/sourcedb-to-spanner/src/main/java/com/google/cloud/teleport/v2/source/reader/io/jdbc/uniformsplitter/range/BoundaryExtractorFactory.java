@@ -64,6 +64,11 @@ public class BoundaryExtractorFactory {
           .put(Double.class, (BoundaryExtractor<Double>) BoundaryExtractorFactory::fromDoubles)
           .put(
               Duration.class, (BoundaryExtractor<Duration>) BoundaryExtractorFactory::fromDurations)
+          .put(
+              java.util.UUID.class,
+              (BoundaryExtractor<java.util.UUID>)
+                  (partitionColumn, resultSet, boundaryTypeMapper) ->
+                      fromUuids(partitionColumn, resultSet, boundaryTypeMapper))
           .build();
 
   /**
@@ -145,6 +150,30 @@ public class BoundaryExtractorFactory {
         .setStart(start)
         .setEnd(end)
         .setBoundarySplitter(BoundarySplitterFactory.create(BYTE_ARRAY_CLASS))
+        .setBoundaryTypeMapper(boundaryTypeMapper)
+        .build();
+  }
+
+  private static Boundary<java.util.UUID> fromUuids(
+      PartitionColumn partitionColumn,
+      ResultSet resultSet,
+      @Nullable BoundaryTypeMapper boundaryTypeMapper)
+      throws SQLException {
+    Preconditions.checkArgument(partitionColumn.columnClass().equals(java.util.UUID.class));
+    resultSet.next();
+
+    // PostgreSQL returns UUIDs as strings via getString()
+    String startStr = resultSet.getString(1);
+    String endStr = resultSet.getString(2);
+
+    java.util.UUID start = startStr != null ? java.util.UUID.fromString(startStr) : null;
+    java.util.UUID end = endStr != null ? java.util.UUID.fromString(endStr) : null;
+
+    return Boundary.<java.util.UUID>builder()
+        .setPartitionColumn(partitionColumn)
+        .setStart(start)
+        .setEnd(end)
+        .setBoundarySplitter(BoundarySplitterFactory.create(java.util.UUID.class))
         .setBoundaryTypeMapper(boundaryTypeMapper)
         .build();
   }

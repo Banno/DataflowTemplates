@@ -217,6 +217,36 @@ public class BoundarySplitterFactoryTest {
   }
 
   @Test
+  public void testUuidBoundarySplitter() {
+    BoundarySplitter<java.util.UUID> splitter =
+        BoundarySplitterFactory.create(java.util.UUID.class);
+
+    // Use UUIDs that don't trigger signed/unsigned comparison issues
+    java.util.UUID min = java.util.UUID.fromString("00000000-0000-0000-0000-000000000000");
+    java.util.UUID mid = java.util.UUID.fromString("10000000-0000-0000-0000-000000000000");
+    java.util.UUID max = java.util.UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    // Test splitting between min and max
+    java.util.UUID splitPoint = splitter.getSplitPoint(min, max, null, null, null);
+    assertThat(splitPoint).isNotNull();
+    // Split point should be mid since it's halfway between min and max
+    assertThat(splitPoint).isEqualTo(mid);
+
+    // Test with null values
+    assertThat(splitter.getSplitPoint(null, max, null, null, null)).isNull();
+    assertThat(splitter.getSplitPoint(min, null, null, null, null)).isNull();
+
+    // Test with same values (not splittable)
+    assertThat(splitter.getSplitPoint(min, min, null, null, null)).isNull();
+
+    // Test that split point is not null for UUIDs with different ranges
+    java.util.UUID uuid1 = java.util.UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    java.util.UUID uuid2 = java.util.UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
+    java.util.UUID split = splitter.getSplitPoint(uuid1, uuid2, null, null, null);
+    assertThat(split).isNotNull();
+  }
+
+  @Test
   public void testStringBoundarySplitter() {
 
     BoundaryTypeMapper mapper = new TestBoundaryTypeMapper();

@@ -49,8 +49,11 @@ public interface UniformSplitterDBAdapter extends Serializable {
    *
    * @param tableName name of the table to read.
    * @param partitionColumns partition columns.
+   * @param colName name of the column.
+   * @param columnClass class of the column.
    */
-  String getBoundaryQuery(String tableName, ImmutableList<String> partitionColumns, String colName);
+  String getBoundaryQuery(
+      String tableName, ImmutableList<String> partitionColumns, String colName, Class columnClass);
 
   /**
    * Check if a given {@link SQLException} is a timeout. The implementation needs to check for
