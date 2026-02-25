@@ -1060,4 +1060,137 @@ public class DdlTest {
     CheckConstraint checkConstraint1 = checkConstraintBuilder.name("ck").expression("1<2").build();
     assertTrue(checkConstraint.equals(checkConstraint1));
   }
+
+  @Test
+  public void testUuidTypeGSQL() {
+    Ddl ddl =
+        Ddl.builder()
+            .createTable("Users")
+            .column("id")
+            .parseType("UUID")
+            .notNull()
+            .endColumn()
+            .column("name")
+            .type(Type.string())
+            .max()
+            .endColumn()
+            .primaryKey()
+            .asc("id")
+            .end()
+            .endTable()
+            .build();
+
+    assertEquals(1, ddl.allTables().size());
+    Table table = ddl.table("Users");
+    assertNotNull(table);
+    assertEquals("Users", table.name());
+    assertEquals(2, table.columns().size());
+
+    Column idColumn = table.column("id");
+    assertNotNull(idColumn);
+    assertEquals(Type.Code.UUID, idColumn.type().getCode());
+    assertTrue(idColumn.notNull());
+
+    assertThat(
+        ddl.prettyPrint(),
+        equalToCompressingWhiteSpace(
+            "CREATE TABLE `Users` (" + " `id` UUID NOT NULL," + " `name` STRING(MAX)," + " ) PRIMARY KEY (`id` ASC)"));
+  }
+
+  @Test
+  public void testUuidTypePG() {
+    Ddl ddl =
+        Ddl.builder(Dialect.POSTGRESQL)
+            .createTable("Users")
+            .column("id")
+            .parseType("uuid")
+            .notNull()
+            .endColumn()
+            .column("name")
+            .type(Type.pgText())
+            .endColumn()
+            .primaryKey()
+            .asc("id")
+            .end()
+            .endTable()
+            .build();
+
+    assertEquals(Dialect.POSTGRESQL, ddl.dialect());
+    assertEquals(1, ddl.allTables().size());
+    Table table = ddl.table("Users");
+    assertNotNull(table);
+    assertEquals("Users", table.name());
+    assertEquals(2, table.columns().size());
+
+    Column idColumn = table.column("id");
+    assertNotNull(idColumn);
+    assertEquals(Type.Code.PG_UUID, idColumn.type().getCode());
+    assertTrue(idColumn.notNull());
+
+    assertThat(
+        ddl.prettyPrint(),
+        equalToCompressingWhiteSpace(
+            "CREATE TABLE \"Users\" ("
+                + " \"id\"                                    uuid NOT NULL,"
+                + " \"name\"                                  text,"
+                + " PRIMARY KEY (\"id\")"
+                + " )"));
+  }
+
+  @Test
+  public void testUuidArrayTypeGSQL() {
+    Ddl ddl =
+        Ddl.builder()
+            .createTable("Events")
+            .column("id")
+            .type(Type.int64())
+            .notNull()
+            .endColumn()
+            .column("participant_ids")
+            .parseType("ARRAY<UUID>")
+            .endColumn()
+            .primaryKey()
+            .asc("id")
+            .end()
+            .endTable()
+            .build();
+
+    assertEquals(1, ddl.allTables().size());
+    Table table = ddl.table("Events");
+    assertNotNull(table);
+
+    Column arrayColumn = table.column("participant_ids");
+    assertNotNull(arrayColumn);
+    assertEquals(Type.Code.ARRAY, arrayColumn.type().getCode());
+    assertEquals(Type.Code.UUID, arrayColumn.type().getArrayElementType().getCode());
+  }
+
+  @Test
+  public void testUuidArrayTypePG() {
+    Ddl ddl =
+        Ddl.builder(Dialect.POSTGRESQL)
+            .createTable("Events")
+            .column("id")
+            .type(Type.pgInt8())
+            .notNull()
+            .endColumn()
+            .column("participant_ids")
+            .parseType("uuid[]")
+            .endColumn()
+            .primaryKey()
+            .asc("id")
+            .end()
+            .endTable()
+            .build();
+
+    assertEquals(Dialect.POSTGRESQL, ddl.dialect());
+    assertEquals(1, ddl.allTables().size());
+    Table table = ddl.table("Events");
+    assertNotNull(table);
+
+    Column arrayColumn = table.column("participant_ids");
+    assertNotNull(arrayColumn);
+    assertEquals(Type.Code.PG_ARRAY, arrayColumn.type().getCode());
+    assertEquals(Type.Code.PG_UUID, arrayColumn.type().getArrayElementType().getCode());
+  }
 }

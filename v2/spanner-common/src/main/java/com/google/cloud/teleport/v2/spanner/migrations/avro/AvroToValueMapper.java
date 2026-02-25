@@ -200,10 +200,19 @@ public class AvroToValueMapper {
                 avroArrayFieldToSpannerArray(
                     recordValue, fieldSchema, AvroToValueMapper::avroFieldToDate)));
 
+    gsqlFunctions.put(
+        Type.uuid(),
+        (recordValue, fieldSchema) -> Value.string(avroFieldToString(recordValue, fieldSchema)));
+    gsqlFunctions.put(
+        Type.array(Type.uuid()),
+        (recordValue, fieldSchema) ->
+            Value.stringArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToString)));
+
     return gsqlFunctions;
   }
 
-  /* TODO Support for AvroArrays to PG */
   static Map<Type, AvroToValueFunction> getPgMap() {
     Map<Type, AvroToValueFunction> pgFunctions = new HashMap<>();
     pgFunctions.put(
@@ -242,6 +251,84 @@ public class AvroToValueMapper {
     pgFunctions.put(
         Type.pgDate(),
         (recordValue, fieldSchema) -> Value.date(avroFieldToDate(recordValue, fieldSchema)));
+    pgFunctions.put(
+        Type.pgUuid(),
+        (recordValue, fieldSchema) -> Value.string(avroFieldToString(recordValue, fieldSchema)));
+
+    // PostgreSQL array type mappings
+    pgFunctions.put(
+        Type.pgArray(Type.pgBool()),
+        (recordValue, fieldSchema) ->
+            Value.boolArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToBoolean)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgInt8()),
+        (recordValue, fieldSchema) ->
+            Value.int64Array(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToLong)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgFloat4()),
+        (recordValue, fieldSchema) ->
+            Value.float32Array(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToFloat32)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgFloat8()),
+        (recordValue, fieldSchema) ->
+            Value.float64Array(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToDouble)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgVarchar()),
+        (recordValue, fieldSchema) ->
+            Value.stringArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToString)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgText()),
+        (recordValue, fieldSchema) ->
+            Value.stringArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToString)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgJsonb()),
+        (recordValue, fieldSchema) ->
+            Value.jsonArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToString)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgNumeric()),
+        (recordValue, fieldSchema) ->
+            Value.numericArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToNumericBigDecimal)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgBytea()),
+        (recordValue, fieldSchema) ->
+            Value.bytesArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToByteArray)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgTimestamptz()),
+        (recordValue, fieldSchema) ->
+            Value.timestampArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToTimestamp)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgDate()),
+        (recordValue, fieldSchema) ->
+            Value.dateArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToDate)));
+    pgFunctions.put(
+        Type.pgArray(Type.pgUuid()),
+        (recordValue, fieldSchema) ->
+            Value.stringArray(
+                avroArrayFieldToSpannerArray(
+                    recordValue, fieldSchema, AvroToValueMapper::avroFieldToString)));
+
     return pgFunctions;
   }
 

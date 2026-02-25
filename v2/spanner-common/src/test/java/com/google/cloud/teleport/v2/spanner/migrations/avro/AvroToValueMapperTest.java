@@ -17,6 +17,7 @@ package com.google.cloud.teleport.v2.spanner.migrations.avro;
 
 import static com.google.cloud.teleport.v2.spanner.migrations.avro.AvroToValueMapper.avroArrayFieldToSpannerArray;
 import static com.google.cloud.teleport.v2.spanner.migrations.avro.AvroToValueMapper.getGsqlMap;
+import static com.google.cloud.teleport.v2.spanner.migrations.avro.AvroToValueMapper.getPgMap;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -869,5 +870,343 @@ public class AvroToValueMapperTest {
         () ->
             avroArrayFieldToSpannerArray(
                 genericRecord.get("arrayField"), schema, AvroToValueMapper::avroFieldToLong));
+  }
+
+  @Test
+  public void testGsqlUuidMapping() {
+    String uuidValue = "550e8400-e29b-41d4-a716-446655440000";
+    Value value =
+        getGsqlMap().get(Type.uuid()).apply(uuidValue, SchemaBuilder.builder().stringType());
+    assertEquals("Test UUID scalar", Value.string(uuidValue), value);
+  }
+
+  @Test
+  public void testGsqlUuidArrayMapping() {
+    String[] uuidValues =
+        new String[] {
+          "550e8400-e29b-41d4-a716-446655440000", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        };
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", uuidValues)
+            .build();
+    Value value =
+        getGsqlMap()
+            .get(Type.array(Type.uuid()))
+            .apply(
+                genericRecord.get("arrayField"),
+                genericRecord.getSchema().getField("arrayField").schema());
+    assertEquals("Test UUID array", Value.stringArray(Arrays.asList(uuidValues)), value);
+  }
+
+  @Test
+  public void testPgUuidMapping() {
+    String uuidValue = "550e8400-e29b-41d4-a716-446655440000";
+    Value value =
+        getPgMap().get(Type.pgUuid()).apply(uuidValue, SchemaBuilder.builder().stringType());
+    assertEquals("Test PG UUID scalar", Value.string(uuidValue), value);
+  }
+
+  @Test
+  public void testPgUuidArrayMapping() {
+    String[] uuidValues =
+        new String[] {
+          "550e8400-e29b-41d4-a716-446655440000", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        };
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", uuidValues)
+            .build();
+    Value value =
+        getPgMap()
+            .get(Type.pgArray(Type.pgUuid()))
+            .apply(
+                genericRecord.get("arrayField"),
+                genericRecord.getSchema().getField("arrayField").schema());
+    assertEquals("Test PG UUID array", Value.stringArray(Arrays.asList(uuidValues)), value);
+  }
+
+  @Test
+  public void testPgBoolArrayMapping() {
+    boolean[] values = {true, false, true};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().booleanType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgBool()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.boolArray(values));
+  }
+
+  @Test
+  public void testPgInt8ArrayMapping() {
+    long[] values = {Long.MIN_VALUE, 0L, 42L, Long.MAX_VALUE};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().longType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgInt8()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.int64Array(values));
+  }
+
+  @Test
+  public void testPgFloat4ArrayMapping() {
+    float[] values = {Float.MIN_VALUE, 0.0f, 3.14f, Float.MAX_VALUE};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().floatType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgFloat4()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.float32Array(values));
+  }
+
+  @Test
+  public void testPgFloat8ArrayMapping() {
+    double[] values = {Double.MIN_VALUE, 0.0, 3.14, Double.MAX_VALUE};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().doubleType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgFloat8()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.float64Array(values));
+  }
+
+  @Test
+  public void testPgVarcharArrayMapping() {
+    String[] values = {"hello", "world", "spanner", null};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgVarchar()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.stringArray(Arrays.asList(values)));
+  }
+
+  @Test
+  public void testPgTextArrayMapping() {
+    String[] values = {"PostgreSQL", "text", "array"};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgText()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.stringArray(Arrays.asList(values)));
+  }
+
+  @Test
+  public void testPgJsonbArrayMapping() {
+    String[] values = {"{\"key\":\"value1\"}", "{\"key\":\"value2\"}"};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgJsonb()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.jsonArray(Arrays.asList(values)));
+  }
+
+  @Test
+  public void testPgNumericArrayMapping() {
+    String[] values = {"123.456", "789.012", "0.001"};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    java.util.List<BigDecimal> expectedValues =
+        Arrays.asList(
+            new BigDecimal("123.456000000"),
+            new BigDecimal("789.012000000"),
+            new BigDecimal("0.001000000"));
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgNumeric()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.numericArray(expectedValues));
+  }
+
+  @Test
+  public void testPgByteaArrayMapping() {
+    ByteBuffer[] values = {
+      ByteBuffer.wrap(new byte[] {1, 2, 3}), ByteBuffer.wrap(new byte[] {4, 5, 6})
+    };
+    Schema arraySchema =
+        SchemaBuilder.array().items(SchemaBuilder.builder().bytesType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    java.util.List<ByteArray> expectedValues =
+        Arrays.asList(
+            ByteArray.copyFrom(new byte[] {1, 2, 3}), ByteArray.copyFrom(new byte[] {4, 5, 6}));
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgBytea()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.bytesArray(expectedValues));
+  }
+
+  @Test
+  public void testPgTimestamptzArrayMapping() {
+    String[] values = {"2024-01-01T12:00:00Z", "2024-12-31T23:59:59Z"};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    java.util.List<com.google.cloud.Timestamp> expectedValues =
+        Arrays.asList(
+            com.google.cloud.Timestamp.parseTimestamp("2024-01-01T12:00:00Z"),
+            com.google.cloud.Timestamp.parseTimestamp("2024-12-31T23:59:59Z"));
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgTimestamptz()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.timestampArray(expectedValues));
+  }
+
+  @Test
+  public void testPgDateArrayMapping() {
+    String[] values = {"2024-01-01", "2024-12-31"};
+    Schema arraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+    GenericRecord genericRecord =
+        new GenericRecordBuilder(
+                SchemaBuilder.record("payload")
+                    .fields()
+                    .name("arrayField")
+                    .type(arraySchema)
+                    .noDefault()
+                    .endRecord())
+            .set("arrayField", values)
+            .build();
+    java.util.List<Date> expectedValues =
+        Arrays.asList(Date.parseDate("2024-01-01"), Date.parseDate("2024-12-31"));
+    assertThat(
+            getPgMap()
+                .get(Type.pgArray(Type.pgDate()))
+                .apply(
+                    genericRecord.get("arrayField"),
+                    genericRecord.getSchema().getField("arrayField").schema()))
+        .isEqualTo(Value.dateArray(expectedValues));
   }
 }

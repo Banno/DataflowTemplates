@@ -162,8 +162,12 @@ public abstract class Column implements Serializable {
         return Type.Code.PG_NUMERIC.getName();
       case JSON:
         return Type.Code.JSON.getName();
+      case UUID:
+        return Type.Code.UUID.getName();
       case PG_JSONB:
         return Type.Code.PG_JSONB.getName();
+      case PG_UUID:
+        return Type.Code.PG_UUID.getName();
       case TOKENLIST:
         return Type.Code.TOKENLIST.getName();
       case ARRAY:
@@ -380,6 +384,9 @@ public abstract class Column implements Serializable {
           if (spannerType.equals(Type.Code.JSON.getName())) {
             return t(Type.json(), null);
           }
+          if (spannerType.equals(Type.Code.UUID.getName())) {
+            return t(Type.uuid(), null);
+          }
           if (spannerType.equals(Type.Code.TOKENLIST.getName())) {
             return t(Type.tokenlist(), null);
           }
@@ -437,6 +444,9 @@ public abstract class Column implements Serializable {
           }
           if (spannerType.equals(Type.Code.PG_DATE.getName())) {
             return t(Type.pgDate(), null);
+          }
+          if (spannerType.equals(Type.Code.PG_UUID.getName())) {
+            return t(Type.pgUuid(), null);
           }
           if (spannerType.equals(Type.Code.PG_COMMIT_TIMESTAMP.getName())) {
             return t(Type.pgCommitTimestamp(), null);

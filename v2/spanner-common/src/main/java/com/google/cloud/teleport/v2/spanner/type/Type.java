@@ -44,6 +44,7 @@ public final class Type implements Serializable {
   private static final Type TYPE_BYTES = new Type(Type.Code.BYTES, null, null);
   private static final Type TYPE_TIMESTAMP = new Type(Type.Code.TIMESTAMP, null, null);
   private static final Type TYPE_DATE = new Type(Type.Code.DATE, null, null);
+  private static final Type TYPE_UUID = new Type(Type.Code.UUID, null, null);
   private static final Type TYPE_ARRAY_BOOL = new Type(Type.Code.ARRAY, TYPE_BOOL, null);
   private static final Type TYPE_ARRAY_INT64 = new Type(Type.Code.ARRAY, TYPE_INT64, null);
   private static final Type TYPE_ARRAY_FLOAT32 = new Type(Type.Code.ARRAY, TYPE_FLOAT32, null);
@@ -54,6 +55,7 @@ public final class Type implements Serializable {
   private static final Type TYPE_ARRAY_BYTES = new Type(Type.Code.ARRAY, TYPE_BYTES, null);
   private static final Type TYPE_ARRAY_TIMESTAMP = new Type(Type.Code.ARRAY, TYPE_TIMESTAMP, null);
   private static final Type TYPE_ARRAY_DATE = new Type(Type.Code.ARRAY, TYPE_DATE, null);
+  private static final Type TYPE_ARRAY_UUID = new Type(Type.Code.ARRAY, TYPE_UUID, null);
 
   private static final Type TYPE_PG_BOOL = new Type(Type.Code.PG_BOOL, null, null);
   private static final Type TYPE_PG_INT8 = new Type(Type.Code.PG_INT8, null, null);
@@ -66,6 +68,7 @@ public final class Type implements Serializable {
   private static final Type TYPE_PG_BYTEA = new Type(Type.Code.PG_BYTEA, null, null);
   private static final Type TYPE_PG_TIMESTAMPTZ = new Type(Type.Code.PG_TIMESTAMPTZ, null, null);
   private static final Type TYPE_PG_DATE = new Type(Type.Code.PG_DATE, null, null);
+  private static final Type TYPE_PG_UUID = new Type(Type.Code.PG_UUID, null, null);
   private static final Type TYPE_PG_ARRAY_BOOL = new Type(Type.Code.PG_ARRAY, TYPE_PG_BOOL, null);
   private static final Type TYPE_PG_ARRAY_INT8 = new Type(Type.Code.PG_ARRAY, TYPE_PG_INT8, null);
   private static final Type TYPE_PG_ARRAY_FLOAT4 =
@@ -82,6 +85,7 @@ public final class Type implements Serializable {
   private static final Type TYPE_PG_ARRAY_TIMESTAMPTZ =
       new Type(Type.Code.PG_ARRAY, TYPE_PG_TIMESTAMPTZ, null);
   private static final Type TYPE_PG_ARRAY_DATE = new Type(Type.Code.PG_ARRAY, TYPE_PG_DATE, null);
+  private static final Type TYPE_PG_ARRAY_UUID = new Type(Type.Code.PG_ARRAY, TYPE_PG_UUID, null);
 
   private static final int AMBIGUOUS_FIELD = -1;
   private static final long serialVersionUID = -3076152125004114582L;
@@ -160,6 +164,11 @@ public final class Type implements Serializable {
     return TYPE_DATE;
   }
 
+  /** Returns the descriptor for the {@code UUID} type. */
+  public static Type uuid() {
+    return TYPE_UUID;
+  }
+
   public static Type pgBool() {
     return TYPE_PG_BOOL;
   }
@@ -204,6 +213,11 @@ public final class Type implements Serializable {
     return TYPE_PG_DATE;
   }
 
+  /** Returns the descriptor for the PostgreSQL {@code UUID} type. */
+  public static Type pgUuid() {
+    return TYPE_PG_UUID;
+  }
+
   public static Type pgCommitTimestamp() {
     return TYPE_PG_COMMIT_TIMESTAMP;
   }
@@ -232,6 +246,8 @@ public final class Type implements Serializable {
         return TYPE_ARRAY_TIMESTAMP;
       case DATE:
         return TYPE_ARRAY_DATE;
+      case UUID:
+        return TYPE_ARRAY_UUID;
       default:
         return new Type(Type.Code.ARRAY, elementType, null);
     }
@@ -263,6 +279,8 @@ public final class Type implements Serializable {
         return TYPE_PG_ARRAY_TIMESTAMPTZ;
       case PG_DATE:
         return TYPE_PG_ARRAY_DATE;
+      case PG_UUID:
+        return TYPE_PG_ARRAY_UUID;
       default:
         throw new IllegalArgumentException("Unknown Array type: Array of " + elementType);
     }
@@ -312,6 +330,7 @@ public final class Type implements Serializable {
     FLOAT64("FLOAT64", Dialect.GOOGLE_STANDARD_SQL),
     STRING("STRING", Dialect.GOOGLE_STANDARD_SQL),
     JSON("JSON", Dialect.GOOGLE_STANDARD_SQL),
+    UUID("UUID", Dialect.GOOGLE_STANDARD_SQL),
     // This type is not supported on PG Spanner.
     TOKENLIST("TOKENLIST", Dialect.GOOGLE_STANDARD_SQL),
     BYTES("BYTES", Dialect.GOOGLE_STANDARD_SQL),
@@ -330,6 +349,7 @@ public final class Type implements Serializable {
     PG_BYTEA("bytea", Dialect.POSTGRESQL),
     PG_TIMESTAMPTZ("timestamp with time zone", Dialect.POSTGRESQL),
     PG_DATE("date", Dialect.POSTGRESQL),
+    PG_UUID("uuid", Dialect.POSTGRESQL),
     PG_ARRAY("array", Dialect.POSTGRESQL),
     PG_COMMIT_TIMESTAMP("spanner.commit_timestamp", Dialect.POSTGRESQL);
 
