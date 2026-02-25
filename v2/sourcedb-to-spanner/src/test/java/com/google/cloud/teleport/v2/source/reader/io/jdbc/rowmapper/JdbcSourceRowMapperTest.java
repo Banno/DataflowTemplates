@@ -259,6 +259,14 @@ public class JdbcSourceRowMapperTest {
     ResultSet mockIntArrayResultSet = Mockito.mock(ResultSet.class);
     when(mockIntArrayResultSet.getArray(intArrayColumn)).thenReturn(mockIntArray);
 
+    String enumArrayColumn = "enum_array_col";
+    String[] enumArrayValues = {"happy", "sad", "ok"};
+    ArrayList<String> expectedEnumArray = new ArrayList<String>(Arrays.asList(enumArrayValues));
+    Array mockEnumArray = Mockito.mock(Array.class);
+    when(mockEnumArray.getArray()).thenReturn(enumArrayValues);
+    ResultSet mockEnumArrayResultSet = Mockito.mock(ResultSet.class);
+    when(mockEnumArrayResultSet.getArray(enumArrayColumn)).thenReturn(mockEnumArray);
+
     var sourceTableSchema =
         SourceTableSchema.builder(MapperType.POSTGRESQL)
             .setTableName(testTable)
@@ -266,6 +274,8 @@ public class JdbcSourceRowMapperTest {
                 textArrayColumn, new SourceColumnType("TEXT", new Long[] {}, new Long[] {1L}))
             .addSourceColumnNameToSourceColumnType(
                 intArrayColumn, new SourceColumnType("INTEGER", new Long[] {}, new Long[] {1L}))
+            .addSourceColumnNameToSourceColumnType(
+                enumArrayColumn, new SourceColumnType("ENUM", new Long[] {}, new Long[] {1L}))
             .build();
     var sourceSchemaRef = SchemaTestUtils.generateSchemaReference("public", "mydb");
     JdbcSourceRowMapper mapper =
@@ -273,6 +283,7 @@ public class JdbcSourceRowMapperTest {
             new PostgreSQLJdbcValueMappings(), sourceSchemaRef, sourceTableSchema, null);
     assertEquals(expectedTextArray, (ArrayList<String>) mapper.mapRow(mockTextArrayResultSet).getPayload().get(textArrayColumn));
     assertEquals(expectedIntArray, (ArrayList<Integer>) mapper.mapRow(mockIntArrayResultSet).getPayload().get(intArrayColumn));
+    assertEquals(expectedEnumArray, (ArrayList<String>) mapper.mapRow(mockEnumArrayResultSet).getPayload().get(enumArrayColumn));
   }
 
   @Test
@@ -650,7 +661,7 @@ public class JdbcSourceRowMapperTest {
                 .derbyColumnType("VARCHAR(100)")
                 .sourceColumnType("ENUM")
                 .inputValue("ENUM VALUE")
-                .mappedValue(null) // Unsupported
+                .mappedValue("ENUM VALUE")
                 .build())
         .add(
             Column.builder()

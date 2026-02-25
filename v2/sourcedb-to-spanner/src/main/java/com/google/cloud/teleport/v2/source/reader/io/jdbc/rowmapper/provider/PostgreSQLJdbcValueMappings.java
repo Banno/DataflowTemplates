@@ -125,6 +125,7 @@ public class PostgreSQLJdbcValueMappings implements JdbcValueMappingsProvider {
           .put("DATE", Pair.of(dateExtractor, dateToAvro))
           .put("DECIMAL", Pair.of(ResultSet::getObject, numericToAvro))
           .put("DOUBLE PRECISION", Pair.of(ResultSet::getDouble, valuePassThrough))
+          .put("ENUM", Pair.of(ResultSet::getString, valuePassThrough))
           .put("FLOAT4", Pair.of(ResultSet::getFloat, valuePassThrough))
           .put("FLOAT8", Pair.of(ResultSet::getDouble, valuePassThrough))
           .put("INT", Pair.of(ResultSet::getInt, valuePassThrough))

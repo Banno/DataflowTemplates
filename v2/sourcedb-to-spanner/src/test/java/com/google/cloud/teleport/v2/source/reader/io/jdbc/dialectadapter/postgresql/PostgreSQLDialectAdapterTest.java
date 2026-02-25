@@ -119,6 +119,9 @@ public class PostgreSQLDialectAdapterTest {
     when(mockResultSet.next()).thenReturn(true, true, true, true, false);
     when(mockResultSet.getString("column_name")).thenReturn("id", "col1", "col2", "col3");
     when(mockResultSet.getString("data_type")).thenReturn("bigint", "text", "varchar", "numeric");
+    when(mockResultSet.getString("column_typtype")).thenReturn(null, null, null, null);
+    when(mockResultSet.getString("element_type")).thenReturn(null, null, null, null);
+    when(mockResultSet.getString("element_typtype")).thenReturn(null, null, null, null);
     when(mockResultSet.getLong("character_maximum_length")).thenReturn(0L, 0L, 100L, 0L);
     when(mockResultSet.getLong("numeric_precision")).thenReturn(64L, 0L, 0L, 100L);
     when(mockResultSet.getLong("numeric_scale")).thenReturn(0L, 0L, 0L, 200L);
@@ -460,7 +463,9 @@ public class PostgreSQLDialectAdapterTest {
     when(mockResultSet.next()).thenReturn(true, false); // One column, then end
     when(mockResultSet.getString("column_name")).thenReturn("int_array_col");
     when(mockResultSet.getString("data_type")).thenReturn("ARRAY");
+    when(mockResultSet.getString("column_typtype")).thenReturn(null);
     when(mockResultSet.getString("element_type")).thenReturn("integer"); // Element type for INT[]
+    when(mockResultSet.getString("element_typtype")).thenReturn(null);
     when(mockResultSet.getLong("character_maximum_length")).thenReturn(0L);
     when(mockResultSet.getLong("numeric_precision")).thenReturn(0L);
     when(mockResultSet.getLong("numeric_scale")).thenReturn(0L);
@@ -471,4 +476,79 @@ public class PostgreSQLDialectAdapterTest {
             "my_schema.table_with_array",
             ImmutableMap.of(
                 "int_array_col", new SourceColumnType("integer", new Long[] {}, new Long[]{1L})));
+  }
+
+  @Test
+  public void testDiscoverTableSchemaWithEnumType() throws SQLException, RetriableSchemaDiscoveryException {
+    ImmutableList<String> tables = ImmutableList.of("my_schema.table_with_enum");
+
+    when(mockDataSource.getConnection()).thenReturn(mockConnection);
+    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true, false); // One column, then end
+    when(mockResultSet.getString("column_name")).thenReturn("mood_col");
+    when(mockResultSet.getString("data_type")).thenReturn("USER-DEFINED");
+    when(mockResultSet.getString("column_typtype")).thenReturn("e"); // 'e' indicates enum type
+    when(mockResultSet.getString("element_type")).thenReturn(null);
+    when(mockResultSet.getString("element_typtype")).thenReturn(null);
+    when(mockResultSet.getLong("character_maximum_length")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_precision")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_scale")).thenReturn(0L);
+    when(mockResultSet.wasNull()).thenReturn(true, true, true);
+
+    assertThat(adapter.discoverTableSchema(mockDataSource, sourceSchemaReference, tables))
+        .containsExactly(
+            "my_schema.table_with_enum",
+            ImmutableMap.of(
+                "mood_col", new SourceColumnType("ENUM", new Long[] {}, null)));
+  }
+
+  @Test
+  public void testDiscoverTableSchemaWithEnumArrayType() throws SQLException, RetriableSchemaDiscoveryException {
+    ImmutableList<String> tables = ImmutableList.of("my_schema.table_with_enum_array");
+
+    when(mockDataSource.getConnection()).thenReturn(mockConnection);
+    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true, false); // One column, then end
+    when(mockResultSet.getString("column_name")).thenReturn("moods_col");
+    when(mockResultSet.getString("data_type")).thenReturn("ARRAY");
+    when(mockResultSet.getString("column_typtype")).thenReturn(null);
+    when(mockResultSet.getString("element_type")).thenReturn("USER-DEFINED");
+    when(mockResultSet.getString("element_typtype")).thenReturn("e"); // 'e' indicates enum type
+    when(mockResultSet.getLong("character_maximum_length")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_precision")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_scale")).thenReturn(0L);
+    when(mockResultSet.wasNull()).thenReturn(true, true, true);
+
+    assertThat(adapter.discoverTableSchema(mockDataSource, sourceSchemaReference, tables))
+        .containsExactly(
+            "my_schema.table_with_enum_array",
+            ImmutableMap.of(
+                "moods_col", new SourceColumnType("ENUM", new Long[] {}, new Long[]{1L})));
+  }
+
+  @Test
+  public void testDiscoverTableSchemaWithNonEnumUserDefinedType() throws SQLException, RetriableSchemaDiscoveryException {
+    ImmutableList<String> tables = ImmutableList.of("my_schema.table_with_composite");
+
+    when(mockDataSource.getConnection()).thenReturn(mockConnection);
+    when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+    when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true, false); // One column, then end
+    when(mockResultSet.getString("column_name")).thenReturn("composite_col");
+    when(mockResultSet.getString("data_type")).thenReturn("USER-DEFINED");
+    when(mockResultSet.getString("column_typtype")).thenReturn("c"); // 'c' indicates composite type, not enum
+    when(mockResultSet.getString("element_type")).thenReturn(null);
+    when(mockResultSet.getString("element_typtype")).thenReturn(null);
+    when(mockResultSet.getLong("character_maximum_length")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_precision")).thenReturn(0L);
+    when(mockResultSet.getLong("numeric_scale")).thenReturn(0L);
+    when(mockResultSet.wasNull()).thenReturn(true, true, true);
+
+    assertThat(adapter.discoverTableSchema(mockDataSource, sourceSchemaReference, tables))
+        .containsExactly(
+            "my_schema.table_with_composite",
+            ImmutableMap.of(
+                "composite_col", new SourceColumnType("USER-DEFINED", new Long[] {}, null)));
   }}

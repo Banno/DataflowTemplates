@@ -173,12 +173,16 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
             + "  c.character_maximum_length,"
             + "  c.numeric_precision,"
             + "  c.numeric_scale,"
-            + "  e.data_type AS element_type"
+            + "  e.data_type AS element_type,"
+            + "  t.typtype AS column_typtype,"
+            + "  et.typtype AS element_typtype"
             + " FROM information_schema.columns c"
             + " LEFT JOIN information_schema.element_types e ON ("
             + "    (c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier) ="
             + "    (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier)"
             + " )"
+            + " LEFT JOIN pg_catalog.pg_type t ON t.typname = c.udt_name"
+            + " LEFT JOIN pg_catalog.pg_type et ON et.typname = e.udt_name"
             + " WHERE c.table_catalog = ?"
             + "  AND c.table_schema = ?"
             + "  AND c.table_name = ?";
@@ -196,15 +200,28 @@ public class PostgreSQLDialectAdapter implements DialectAdapter {
           while (resultSet.next()) {
             final String columnName = resultSet.getString("column_name");
             String columnType = resultSet.getString("data_type");
+            String columnTyptype = resultSet.getString("column_typtype");
             Long[] arrayBounds = null; // Initialize arrayBounds to null
 
             // Check if it's an array type and get the element type
             if ("ARRAY".equalsIgnoreCase(columnType)) {
                 String elementType = resultSet.getString("element_type");
+                String elementTyptype = resultSet.getString("element_typtype");
+
                 if (elementType != null) {
+                    // Check if the array element is an enum
+                    if ("USER-DEFINED".equalsIgnoreCase(elementType) && "e".equals(elementTyptype)) {
+                        elementType = "ENUM";
+                    }
+
                     columnType = elementType; // Use element type for SourceColumnType.name
                     arrayBounds = new Long[]{1L}; // Indicate a single-dimensional array (for now, assume 1D)
                 }
+            }
+
+            // Handle PostgreSQL enums for non-array columns
+            if ("USER-DEFINED".equalsIgnoreCase(columnType) && "e".equals(columnTyptype)) {
+                columnType = "ENUM";
             }
 
             SourceColumnType sourceColumnType;
