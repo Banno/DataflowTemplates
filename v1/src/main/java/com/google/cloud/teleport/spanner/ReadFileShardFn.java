@@ -25,6 +25,7 @@ import java.io.StringReader;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
@@ -132,7 +133,7 @@ class ReadFileShardFn extends DoFn<FileShard, KV<String, CSVRecord>> {
                 + (shard.getFile().getMetadata().sizeBytes() - shard.getRange().getTo()));
         ((SeekableByteChannel) channel).position(shard.getRange().getFrom());
         InputStream stream = Channels.newInputStream(channel);
-        Reader reader = new InputStreamReader(stream);
+        Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
         CSVParser parser = new CSVParser(reader, csvFormat);
         long recordCount = 0;
         for (CSVRecord record : parser) {

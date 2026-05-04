@@ -19,6 +19,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -596,6 +597,77 @@ public final class SplitIntoRangesFnTest implements Serializable {
     PAssert.that(offsetRanges)
         .containsInAnyOrder(new OffsetRange(0L, 7L), new OffsetRange(7L, 14L));
     PAssert.that(recordCounts).containsInAnyOrder(2L, 1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void handleNewLineNonAsciiSplitTest() throws Exception {
+    // Byte layout (UTF-8):
+    //   "1,café\n"   = 8 bytes  (7 chars — 'é' encodes as 2 bytes: 0xC3 0xA9)
+    //   "2,résumé\n" = 11 bytes (9 chars — two 'é' characters)
+    //   "3,naïve"    = 8 bytes  (7 chars — 'ï' encodes as 2 bytes: 0xC3 0xAF), no trailing newline
+    //   Total        = 27 bytes (23 chars)
+    //
+    // With bundle size 7, each record's byte length exceeds the threshold so each gets its own
+    // shard. The shard OffsetRange boundaries must be byte offsets, not character offsets —
+    // using character offsets would place the boundaries at 7, 16, and 23 instead of 8, 19, 27.
+    Path inputFile = Files.createTempFile(testTableName, ".csv");
+    try (BufferedWriter writer = Files.newBufferedWriter(inputFile, StandardCharsets.UTF_8)) {
+      writer.write("1,café\n2,résumé\n3,naïve");
+    }
+
+    PCollectionView<Map<String, String>> filesToTablesMapView =
+        pipeline
+            .apply("filesToTablesMapView", Create.of(KV.of(inputFile.toString(), testTableName)))
+            .apply(View.asMap());
+
+    PCollection<FileShard> fileShards =
+        pipeline
+            .apply("Create file name collection", Create.of(inputFile.toString()))
+            .apply(FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW))
+            .apply(FileIO.readMatches())
+            .apply(
+                "Split into ranges",
+                ParDo.of(
+                        new SplitIntoRangesFn(
+                            7L,
+                            filesToTablesMapView,
+                            fieldQualifier,
+                            columnDelimiter,
+                            escapeChar,
+                            handleNewLine))
+                    .withSideInputs(filesToTablesMapView))
+            .setCoder(FileShard.Coder.of());
+
+    PCollection<OffsetRange> offsetRanges =
+        fileShards.apply(
+            "Get offset ranges",
+            ParDo.of(
+                new DoFn<FileShard, OffsetRange>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().getRange());
+                  }
+                }));
+
+    PCollection<Long> recordCounts =
+        fileShards.apply(
+            "Get record counts",
+            ParDo.of(
+                new DoFn<FileShard, Long>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().getRecordCount());
+                  }
+                }));
+
+    PAssert.that(offsetRanges)
+        .containsInAnyOrder(
+            new OffsetRange(0L, 8L),
+            new OffsetRange(8L, 19L),
+            new OffsetRange(19L, 27L));
+    PAssert.that(recordCounts).containsInAnyOrder(1L, 1L, 1L);
 
     pipeline.run();
   }

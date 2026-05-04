@@ -19,8 +19,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Map;
@@ -112,7 +110,6 @@ class SplitIntoRangesFn extends DoFn<ReadableFile, FileShard> {
     try {
       ReadableByteChannel channel = FileSystems.open(metadata.resourceId());
       InputStream stream = Channels.newInputStream(channel);
-      Reader reader = new InputStreamReader(stream);
       char escape =
           (escapeChar == null || escapeChar.get() == null) ? ((char) 0) : escapeChar.get();
 
@@ -122,7 +119,7 @@ class SplitIntoRangesFn extends DoFn<ReadableFile, FileShard> {
       long bytesRead = 0, prevMarker = 0, maxShardSize = desiredBundleSize, recordCount = 0;
       boolean quoted = false;
       while (data != -1) {
-        data = reader.read();
+        data = stream.read();
         bytesRead++;
         // This always reads the first char of the column, which can either be the start of the row
         // or the character after the delimiter.
@@ -154,7 +151,7 @@ class SplitIntoRangesFn extends DoFn<ReadableFile, FileShard> {
             continue;
           }
           while (data != -1) {
-            data = reader.read();
+            data = stream.read();
             bytesRead++;
             // If prev char is escaped, do nothing.
             if ((char) prevData == escape) {
@@ -197,12 +194,12 @@ class SplitIntoRangesFn extends DoFn<ReadableFile, FileShard> {
           // other  than a whitespace. We ignore any newlines or delimiters inside quotes.
           while (data != -1) {
             prevData = data;
-            data = reader.read();
+            data = stream.read();
             bytesRead++;
             // CSV quotes can be escaped via the escape character or the quote itself.
             if ((char) data == escape || (char) data == quoteChar.get()) {
               prevData = data;
-              data = reader.read();
+              data = stream.read();
               bytesRead++;
               if ((char) data == quoteChar.get()) {
                 // Character is quote hence ignore since prev was an escape.
@@ -237,7 +234,7 @@ class SplitIntoRangesFn extends DoFn<ReadableFile, FileShard> {
                     throw new RuntimeException("Found char '" + (char) data + "' outside quote");
                   }
                   prevData = data;
-                  data = reader.read();
+                  data = stream.read();
                   bytesRead++;
                 }
                 break;

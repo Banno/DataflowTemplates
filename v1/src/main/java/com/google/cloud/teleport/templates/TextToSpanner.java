@@ -31,6 +31,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -422,7 +423,8 @@ public class TextToSpanner {
             FileSystems.open(FileSystems.matchNewResource(schemaFilename.get(), false));
         String schemaString =
             new String(
-                StreamUtils.getBytesWithoutClosing(Channels.newInputStream(readableByteChannel)));
+                StreamUtils.getBytesWithoutClosing(Channels.newInputStream(readableByteChannel)),
+                StandardCharsets.UTF_8);
 
         SpannerSchema spannerSchema = new SpannerSchema(schemaString);
 
